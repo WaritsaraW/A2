@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getOrders, createOrder } from '@/lib/data-service';
 
+// Mark this route as dynamic to avoid static rendering errors
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const orders = await getOrders();

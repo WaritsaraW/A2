@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getOrders } from '@/lib/data-service';
 
+// Mark this route as dynamic to avoid static rendering errors
+export const dynamic = 'force-dynamic';
+
 // This is a mock implementation since we don't have a full update function in our data service
 export async function POST(
   request: Request,

@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CarDetails from '../components/CarDetails';
 import ReservationForm from '../components/ReservationForm';
 import { ReservationFormData, Car, Order } from '@/lib/models';
 import Link from 'next/link';
 
-const ReservationPage = () => {
+// Component to fetch car data
+function ReservationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [car, setCar] = useState<Car | null>(null);
@@ -409,6 +410,23 @@ const ReservationPage = () => {
         </table>
       </div>
     </div>
+  );
+}
+
+// Main component with Suspense
+const ReservationPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="bg-gray-50 min-h-screen reservation-page">
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <ReservationContent />
+    </Suspense>
   );
 };
 

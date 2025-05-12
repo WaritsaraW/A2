@@ -1,6 +1,35 @@
-import db from './db';
 import { Order, Customer, Rental } from './models';
 import { updateCarAvailability } from './carService';
+import { getCarByVin } from './carService';
+import fs from 'fs';
+import path from 'path';
+
+// Load orders from JSON file
+const ordersFilePath = path.join(process.cwd(), 'orders.json');
+let ordersData: { orders: Order[] } = { orders: [] };
+
+try {
+  const jsonData = fs.readFileSync(ordersFilePath, 'utf8');
+  ordersData = JSON.parse(jsonData);
+} catch (error) {
+  console.error('Error loading orders data:', error);
+}
+
+// Helper function to save orders back to the file
+function saveOrders() {
+  try {
+    fs.writeFileSync(ordersFilePath, JSON.stringify(ordersData, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Error saving orders:', error);
+  }
+}
+
+// Generate a new order ID
+function generateOrderId(): number {
+  const maxId = ordersData.orders.reduce((max, order) => 
+    order.id ? Math.max(max, order.id) : max, 0);
+  return maxId + 1;
+}
 
 export function createOrder(
   customer: Customer,
@@ -9,43 +38,37 @@ export function createOrder(
 ): number | null {
   try {
     // Check if the car is available
-    const car = db.prepare('SELECT available FROM cars WHERE vin = ?').get(carVin) as { available: number } | undefined;
+    const car = getCarByVin(carVin);
     
     if (!car || !car.available) {
       return null; // Car not found or not available
     }
 
     const orderDate = new Date().toISOString().split('T')[0];
+    const newOrderId = generateOrderId();
     
-    // Begin transaction
-    const transaction = db.transaction(() => {
-      // Insert order
-      const result = db.prepare(`
-        INSERT INTO orders (
-          customerName, phoneNumber, email, driversLicenseNumber,
-          carVin, startDate, rentalPeriod, totalPrice, orderDate, status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        customer.name,
-        customer.phoneNumber,
-        customer.email,
-        customer.driversLicenseNumber,
-        carVin,
-        rental.startDate,
-        rental.rentalPeriod,
-        rental.totalPrice,
-        orderDate,
-        'pending'
-      );
+    // Create the new order
+    const newOrder: Order = {
+      id: newOrderId,
+      customer,
+      car: { vin: carVin },
+      rental: {
+        ...rental,
+        orderDate
+      },
+      status: 'pending'
+    };
 
-      // Update car availability
-      updateCarAvailability(carVin, false);
-      
-      return result.lastInsertRowid as number;
-    });
+    // Add to the orders array
+    ordersData.orders.push(newOrder);
     
-    return transaction();
+    // Update car availability
+    updateCarAvailability(carVin, false);
+    
+    // Save to file
+    saveOrders();
+    
+    return newOrderId;
   } catch (error) {
     console.error('Error creating order:', error);
     return null;
@@ -54,37 +77,8 @@ export function createOrder(
 
 export function getOrderById(orderId: number): Order | null {
   try {
-    const orderData = db.prepare(`
-      SELECT 
-        o.id, o.customerName, o.phoneNumber, o.email, o.driversLicenseNumber,
-        o.carVin, o.startDate, o.rentalPeriod, o.totalPrice, o.orderDate, o.status
-      FROM orders o
-      WHERE o.id = ?
-    `).get(orderId) as any;
-
-    if (!orderData) {
-      return null;
-    }
-
-    return {
-      id: orderData.id,
-      customer: {
-        name: orderData.customerName,
-        phoneNumber: orderData.phoneNumber,
-        email: orderData.email,
-        driversLicenseNumber: orderData.driversLicenseNumber
-      },
-      car: {
-        vin: orderData.carVin
-      },
-      rental: {
-        startDate: orderData.startDate,
-        rentalPeriod: orderData.rentalPeriod,
-        totalPrice: orderData.totalPrice,
-        orderDate: orderData.orderDate
-      },
-      status: orderData.status
-    };
+    const order = ordersData.orders.find(order => order.id === orderId);
+    return order || null;
   } catch (error) {
     console.error('Error getting order:', error);
     return null;
@@ -93,9 +87,16 @@ export function getOrderById(orderId: number): Order | null {
 
 export function confirmOrder(orderId: number): boolean {
   try {
-    const result = db.prepare('UPDATE orders SET status = ? WHERE id = ? AND status = ?')
-      .run('confirmed', orderId, 'pending');
-    return result.changes > 0;
+    const orderIndex = ordersData.orders.findIndex(order => 
+      order.id === orderId && order.status === 'pending');
+    
+    if (orderIndex === -1) {
+      return false;
+    }
+    
+    ordersData.orders[orderIndex].status = 'confirmed';
+    saveOrders();
+    return true;
   } catch (error) {
     console.error('Error confirming order:', error);
     return false;
@@ -104,25 +105,25 @@ export function confirmOrder(orderId: number): boolean {
 
 export function cancelOrder(orderId: number): boolean {
   try {
-    // Get the order to find the car VIN
-    const order = getOrderById(orderId);
-    if (!order || order.status !== 'pending') {
+    const orderIndex = ordersData.orders.findIndex(order => 
+      order.id === orderId && order.status === 'pending');
+    
+    if (orderIndex === -1) {
       return false;
     }
-
-    // Begin transaction
-    const transaction = db.transaction(() => {
-      // Update order status
-      const result = db.prepare('UPDATE orders SET status = ? WHERE id = ?')
-        .run('cancelled', orderId);
-      
-      // Make the car available again
-      updateCarAvailability(order.car.vin, true);
-      
-      return result.changes > 0;
-    });
     
-    return transaction();
+    const order = ordersData.orders[orderIndex];
+    
+    // Update order status
+    ordersData.orders[orderIndex].status = 'cancelled';
+    
+    // Make the car available again
+    updateCarAvailability(order.car.vin, true);
+    
+    // Save to file
+    saveOrders();
+    
+    return true;
   } catch (error) {
     console.error('Error cancelling order:', error);
     return false;

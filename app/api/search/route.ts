@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { searchCars } from '@/lib/data-service';
 import { SearchFilters } from '@/lib/models';
 
+// Mark this route as dynamic to avoid static rendering errors
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     // Get URL and search params
