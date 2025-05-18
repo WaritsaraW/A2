@@ -2,10 +2,19 @@ module.exports = {
   apps: [
     {
       name: 'car-rental-system',
-      script: './node_modules/next/dist/bin/next',
-      args: 'start -p '+(process.env.PORT || 3000),
+      script: 'npm',
+      args: 'start',
+      instances: 'max',
+      exec_mode: 'cluster',
+      autorestart: true,
       watch: false,
-      autorestart: true
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 8080
+      },
+      // Run build command before starting the application
+      setup: 'npm run build'
     }
   ]
 }; 
