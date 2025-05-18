@@ -6,8 +6,37 @@ import { Car, Order, SearchFilters } from './models';
 const carsPath = path.join(process.cwd(), 'cars.json');
 const ordersPath = path.join(process.cwd(), 'orders.json');
 
+// In-memory storage for production environment
+let inMemoryCars: Car[] = [];
+let inMemoryOrders: Order[] = [];
+
+// Check if running in production (Vercel) or development
+const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+// Initialize in-memory data for production
+const initializeInMemoryData = async () => {
+  try {
+    if (isProduction && inMemoryCars.length === 0) {
+      // Load initial car data only once
+      if (fs.existsSync(carsPath)) {
+        const data = fs.readFileSync(carsPath, 'utf8');
+        inMemoryCars = JSON.parse(data);
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing in-memory data:', error);
+  }
+};
+
+// Call initialization
+initializeInMemoryData();
+
 // Get all cars
 export async function getCars(): Promise<Car[]> {
+  if (isProduction) {
+    return inMemoryCars;
+  }
+
   try {
     // Check if file exists
     if (!fs.existsSync(carsPath)) {
@@ -97,6 +126,10 @@ export async function getCarBrands(): Promise<string[]> {
 
 // Get all orders
 export async function getOrders(): Promise<Order[]> {
+  if (isProduction) {
+    return inMemoryOrders;
+  }
+
   try {
     // Check if file exists
     if (!fs.existsSync(ordersPath)) {
@@ -130,15 +163,141 @@ export async function getOrdersForCar(vin: string): Promise<Order[]> {
 // Create a new order
 export async function createOrder(order: Order): Promise<boolean> {
   try {
-    const orders = await getOrders();
-    orders.push(order);
-    
-    // Write back to file
-    const ordersData = { orders };
-    fs.writeFileSync(ordersPath, JSON.stringify(ordersData, null, 2));
-    return true;
+    if (isProduction) {
+      // Add a generated ID if not present
+      if (!order.id) {
+        const maxId = inMemoryOrders.reduce(
+          (max, o) => (o.id && o.id > max ? o.id : max), 
+          0
+        );
+        order.id = maxId + 1;
+      }
+      
+      // Add to in-memory orders
+      inMemoryOrders.push(order);
+      
+      // Update car availability in memory
+      const carIndex = inMemoryCars.findIndex(car => car.vin === order.car.vin);
+      if (carIndex !== -1) {
+        inMemoryCars[carIndex].available = false;
+      }
+      
+      return true;
+    } else {
+      // Development environment - write to file
+      const orders = await getOrders();
+      orders.push(order);
+      
+      // Write back to file
+      const ordersData = { orders };
+      fs.writeFileSync(ordersPath, JSON.stringify(ordersData, null, 2));
+      
+      // Update car availability in file
+      const cars = await getCars();
+      const carIndex = cars.findIndex(car => car.vin === order.car.vin);
+      if (carIndex !== -1) {
+        cars[carIndex].available = false;
+        fs.writeFileSync(carsPath, JSON.stringify(cars, null, 2));
+      }
+      
+      return true;
+    }
   } catch (error) {
     console.error('Error creating order:', error);
+    return false;
+  }
+}
+
+// Confirm an order
+export async function confirmOrder(orderId: number): Promise<boolean> {
+  try {
+    if (isProduction) {
+      const orderIndex = inMemoryOrders.findIndex(
+        order => order.id === orderId && order.status === 'pending'
+      );
+      
+      if (orderIndex === -1) {
+        return false;
+      }
+      
+      inMemoryOrders[orderIndex].status = 'confirmed';
+      return true;
+    } else {
+      // Development - update in file
+      const orders = await getOrders();
+      const orderIndex = orders.findIndex(
+        order => order.id === orderId && order.status === 'pending'
+      );
+      
+      if (orderIndex === -1) {
+        return false;
+      }
+      
+      orders[orderIndex].status = 'confirmed';
+      
+      // Write back to file
+      const ordersData = { orders };
+      fs.writeFileSync(ordersPath, JSON.stringify(ordersData, null, 2));
+      return true;
+    }
+  } catch (error) {
+    console.error('Error confirming order:', error);
+    return false;
+  }
+}
+
+// Cancel an order
+export async function cancelOrder(orderId: number): Promise<boolean> {
+  try {
+    if (isProduction) {
+      const orderIndex = inMemoryOrders.findIndex(
+        order => order.id === orderId && order.status === 'pending'
+      );
+      
+      if (orderIndex === -1) {
+        return false;
+      }
+      
+      const order = inMemoryOrders[orderIndex];
+      inMemoryOrders[orderIndex].status = 'cancelled';
+      
+      // Make car available again
+      const carIndex = inMemoryCars.findIndex(car => car.vin === order.car.vin);
+      if (carIndex !== -1) {
+        inMemoryCars[carIndex].available = true;
+      }
+      
+      return true;
+    } else {
+      // Development - update in file
+      const orders = await getOrders();
+      const orderIndex = orders.findIndex(
+        order => order.id === orderId && order.status === 'pending'
+      );
+      
+      if (orderIndex === -1) {
+        return false;
+      }
+      
+      const order = orders[orderIndex];
+      orders[orderIndex].status = 'cancelled';
+      
+      // Write back to file
+      const ordersData = { orders };
+      fs.writeFileSync(ordersPath, JSON.stringify(ordersData, null, 2));
+      
+      // Make car available again
+      const cars = await getCars();
+      const carIndex = cars.findIndex(car => car.vin === order.car.vin);
+      if (carIndex !== -1) {
+        cars[carIndex].available = true;
+        fs.writeFileSync(carsPath, JSON.stringify(cars, null, 2));
+      }
+      
+      return true;
+    }
+  } catch (error) {
+    console.error('Error cancelling order:', error);
     return false;
   }
 } 

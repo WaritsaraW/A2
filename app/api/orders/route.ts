@@ -35,8 +35,9 @@ export async function POST(request: Request) {
       );
     }
     
+    // Return success with order ID if it's available
     return NextResponse.json({ 
-      id: Math.floor(Math.random() * 1000) + 1, // Mock ID for now
+      id: orderData.id || 'generated-by-system',  // ID might be generated on the server side
       success: true 
     });
   } catch (error) {

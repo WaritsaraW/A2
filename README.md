@@ -1,6 +1,10 @@
 # Car Rental System
 
-A modern car rental website built with Next.js and SQLite. This application allows users to browse, search, and rent cars with a streamlined user experience.
+A modern car rental website built with Next.js and JSON data storage. This application allows users to browse, search, and rent cars with a streamlined user experience.
+
+## Live Demo
+
+Visit the live website: [DriveEase](https://a2-fawn-one.vercel.app)
 
 ## Features
 
@@ -16,7 +20,9 @@ A modern car rental website built with Next.js and SQLite. This application allo
 
 - **Frontend**: Next.js, React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes
-- **Database**: SQLite (using better-sqlite3)
+- **Database**: 
+  - Development: JSON files for data storage
+  - Production: In-memory data storage with initial data loaded from JSON
 - **Storage**: Local storage for form persistence
 
 ## Getting Started
@@ -56,13 +62,19 @@ npm start
 - `/app`: Contains all React components and Next.js routes
   - `/components`: Reusable React components
   - `/api`: API routes
-- `/lib`: Database and service functions
+- `/lib`: Service functions and data handling
 - `/public`: Static assets
   - `/images`: Car images
-- `/data`: SQLite database file (created at runtime)
+- `/data`: JSON data files
 
 ## Data Persistence
 
-- Car and order data are stored in an SQLite database
-- SQLite database is initialized with sample car data on first run
-- User form input is saved in localStorage when navigating away from the reservation page 
+- Development environment:
+  - Car and order data are stored in JSON files
+  - JSON data is initialized with sample car data on first run
+- Production environment (Vercel):
+  - Data is stored in-memory during the application lifecycle
+  - Initial car data is loaded from JSON files
+  - Orders are stored in-memory only
+- Form persistence:
+  - User form input is saved in localStorage when navigating away from the reservation page 

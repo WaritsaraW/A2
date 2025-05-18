@@ -521,6 +521,42 @@
         "orderDate": "2025-05-09"
       },
       "status": "pending"
+    },
+    {
+      "customer": {
+        "name": "sara",
+        "phoneNumber": "0411845874",
+        "email": "sara@gmail.com",
+        "driversLicenseNumber": "DL12345612"
+      },
+      "car": {
+        "vin": "1HGCM66513A001234"
+      },
+      "rental": {
+        "startDate": "2025-05-18",
+        "rentalPeriod": 1,
+        "totalPrice": 75,
+        "orderDate": "2025-05-18"
+      },
+      "status": "pending"
+    },
+    {
+      "customer": {
+        "name": "sara",
+        "phoneNumber": "0411845874",
+        "email": "sara@gmail.com",
+        "driversLicenseNumber": "DL12345612"
+      },
+      "car": {
+        "vin": "1HGCM66513A001234"
+      },
+      "rental": {
+        "startDate": "2025-05-18",
+        "rentalPeriod": 1,
+        "totalPrice": 75,
+        "orderDate": "2025-05-18"
+      },
+      "status": "pending"
     }
   ]
 }
