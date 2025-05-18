@@ -24,6 +24,7 @@ Visit the live website: [DriveEase](https://a2-fawn-one.vercel.app)
   - Development: JSON files for data storage
   - Production: In-memory data storage with initial data loaded from JSON
 - **Storage**: Local storage for form persistence
+- **Deployment**: Azure App Service with PM2 process manager
 
 ## Getting Started
 
@@ -55,6 +56,29 @@ npm run dev
 ```bash
 npm run build
 npm start
+```
+
+### Deploying with PM2
+
+This project includes PM2 configuration for deploying on Azure App Service:
+
+1. The `ecosystem.config.js` file configures PM2 to run the Next.js application
+2. The `deploy.sh` script handles the installation and PM2 setup
+3. The `web.config` file configures IIS on Azure App Service
+
+To deploy to Azure App Service:
+
+1. Connect your GitHub repository to Azure App Service
+2. Set the startup command to:
+   ```
+   pm2 start ecosystem.config.js
+   ```
+3. Azure App Service will use the web.config file for routing
+
+Alternatively, you can run the deploy script:
+```bash
+chmod +x deploy.sh
+./deploy.sh
 ```
 
 ## Project Structure
