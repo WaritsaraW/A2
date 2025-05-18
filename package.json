@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build || exit 0",
-    "start": "next start",
+    "build": "next build",
+    "start": "next start -p $PORT",
     "lint": "next lint"
   },
   "keywords": [
