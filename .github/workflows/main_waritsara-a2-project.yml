@@ -21,94 +21,20 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: '22.x'
 
-      - name: npm install and build
+      - name: npm install, build, and test
         run: |
           npm install
-          npm run build
-          
-      - name: Create PM2 ecosystem file
-        run: |
-          cat > ecosystem.config.js << 'EOL'
-          module.exports = {
-            apps: [
-              {
-                name: 'car-rental-system',
-                script: 'npm',
-                args: 'start',
-                instances: 'max',
-                exec_mode: 'cluster',
-                autorestart: true,
-                watch: false,
-                max_memory_restart: '1G',
-                env: {
-                  NODE_ENV: 'production',
-                  PORT: 8080
-                }
-              }
-            ]
-          };
-          EOL
-
-      - name: Create startup script
-        run: |
-          cat > startup.sh << 'EOL'
-          #!/bin/bash
-          cd /home/site/wwwroot
-          npm install pm2 -g
-          pm2 start ecosystem.config.js
-          pm2 save
-          EOL
-          chmod +x startup.sh
-      
-      - name: Add web.config for IIS
-        run: |
-          cat > web.config << 'EOL'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="iisnode" path="startup.sh" verb="*" modules="iisnode" />
-              </handlers>
-              <rewrite>
-                <rules>
-                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
-                    <match url="^startup.sh\/debug[\/]?" />
-                  </rule>
-                  <rule name="StaticContent">
-                    <action type="Rewrite" url="public{REQUEST_URI}" />
-                  </rule>
-                  <rule name="DynamicContent">
-                    <conditions>
-                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="True" />
-                    </conditions>
-                    <action type="Rewrite" url="startup.sh" />
-                  </rule>
-                </rules>
-              </rewrite>
-              <security>
-                <requestFiltering>
-                  <hiddenSegments>
-                    <remove segment="bin" />
-                  </hiddenSegments>
-                </requestFiltering>
-              </security>
-              <httpErrors existingResponse="PassThrough" />
-              <iisnode node_env="production" />
-            </system.webServer>
-          </configuration>
-          EOL
-      
-      - name: Create deployment file
-        run: |
-          echo "[config]" > .deployment
-          echo "SCM_DO_BUILD_DURING_DEPLOYMENT=true" >> .deployment
-          echo "WEBSITE_RUN_FROM_PACKAGE=0" >> .deployment
-          echo "COMMAND=bash startup.sh" >> .deployment
+          npm run build --if-present
+          npm run test --if-present
 
       - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+        run: zip release.zip |
+          package.json
+          ./dist
+          ./build
+          ./.next
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -149,5 +75,4 @@ jobs:
           app-name: 'waritsara-a2-project'
           slot-name: 'Production'
           package: .
-          startup-command: 'pm2 start ecosystem.config.js --no-daemon'
           
